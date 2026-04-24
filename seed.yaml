@@ -27,6 +27,7 @@ constraints:
   - **수업 75분 가정(시간 산술)**: 시각이 없고 교시만 있을 때 등은 **한 교시 블록 = 75분** 가정(개설 근거에 시각이 있으면 우선). HTML 가정란 또는 `schedule_validation`에 한 줄 명시.
   - **구획 분리**: 수강 가능 목록·이상안·플랜 B·플랜 C를 **한 덩어리로 합쳐** B·C를 생략하거나, **이상안만** 두고 정상 종료로 처리하지 않는다.
   - **분반·담당 교수**: 개설 근거에 있으면 동일 표기. 없으면 미확인 문구(임의 생성 금지). 교수 스타일 분석은 비목표.
+  - "**연강 가능 여부**는 `campus_rules.json` rule_engine을 따른다. **연강**은 앞 수업 종료~뒷 수업 시작이 **20분 이하**인 경우를 말한다. 판정 기준: (1) 건물 구역(앞자리) 차이가 3 이상이면 기본 불가; (2) rule_tree에 해당 from→to 방향의 조합이 명시되어 있으면 그 `can_connect` 값을 따른다. **rule_tree 규칙은 단방향**으로만 적용한다(from→to 명시 방향만 해당). 연강 불가로 판정된 수업 조합은 **플랜 B·C 후보에서 생성하지 않는다**. 사용자 이상안에 해당 조합이 있으면 **경고·확인 요청만** 하고 이상안 자체를 변경하지 않는다."
 
 acceptance_criteria:
   - PDF/HWP/XLSX 등은 형식별 도구로 읽고 공통 전처리 구조로 정규화한다.
@@ -81,6 +82,13 @@ ontology_schema:
       description: >
         **이상안**, **플랜 B**, **플랜 C** 각각에 대한 동일 안 내 시간 겹침 검사 결과.
         교시당 75분 환산 사용 시 명시.
+    - name: campus_route_validation
+      type: object
+      description: >
+        campus_rules.json rule_engine을 적용한 연강 가능 여부 판정 결과.
+        이상안·플랜 B·플랜 C 각각에서 연강 구간(앞 수업 종료~다음 수업 시작 ≤20분)을 추출하고,
+        건물 from→to 단방향 규칙을 대조해 can_connect 여부를 기록한다.
+        불가 조합은 B·C에서 제외하며, 이상안에 불가 조합이 있으면 경고 메시지를 남긴다.
     - name: route_assessment
       type: object
       description: 건물·구역 데이터가 있을 때만 동선; 수업 구간은 시각 우선, 없으면 75분 블록.
@@ -109,7 +117,7 @@ evaluation_principles:
       플랜 B·C가 **서로 다른 실패 가정**의 즉시 대안으로 쓰이는가, 표·분반·담당·겹침 요약이 있는가.
   - name: pnu_fit
     weight: 0.15
-    description: 캠퍼스·연강은 데이터 있을 때만.
+    description: campus_rules.json rule_engine(단방향)으로 건물 간 연강 가능 여부를 판정했는가; 불가 조합이 B·C에서 제외되었는가; 이상안의 불가 조합에 경고가 있는가.
   - name: failure_hygiene
     weight: 0.05
     description: 파일 추출 실패 시 명확한 오류·종료.
@@ -126,12 +134,14 @@ exit_conditions:
     - 상호 평가·수렴, 경쟁률 예측, 교수 스타일 분석은 v2 이후.
 
 metadata:
-  version: "2.0.0"
+  version: "2.1.0"
   created_at: "2026-04-11"
+  updated_at: "2026-04-24"
   sources:
     - raw_spec.md
     - raw_spec2.md
     - ouroboros-interview (conversation)
     - user design reset (ideal = input, B/C = fallbacks)
+    - campus_rules.json (연강 가능 여부 rule_engine, 단방향)
   ambiguity_score: 0.18
   interview_id: null
