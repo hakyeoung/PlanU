@@ -9,7 +9,7 @@
 ## 업데이트 기록
 
 - 2026-04-27: PlanU의 문제 정의를 **이상적인 시간표 생성 → 플랜 B·C 생성 → 과목별 대체 후보 우선순위 추천**으로 재정리했습니다. 최종 HTML은 이제 **이상안 / 과목별 대체 후보 표 / 긴급 실행 순서 / 제외·주의 목록**을 중심으로 구성하며, 전체 수강 가능 목록은 내부 후보 풀로만 사용합니다. 이상안에 포함된 각 과목의 모든 다른 분반은 추천·주의·제외 중 하나로 반드시 평가합니다.
-- 2026-04-27: 대용량 수강편람 처리 규칙을 정리하고 `_planu_extract.py`를 추가했습니다. 로컬 수강편람 파일이 있으면 헤더와 첫 3~5줄만 소량 검사해 추출 스크립트를 자동 작성·실행하고, stdout의 `available_courses_catalog` JSON 스키마를 고정해 사용합니다.
+- 2026-04-27: 대용량 수강편람 처리 규칙을 정리하고 워크스페이스 보조 실행 스크립트 `_planu_extract.py`를 추가했습니다. 로컬 수강편람 파일이 있으면 이 스크립트로 정제 JSON을 만들고, stdout의 `available_courses_catalog` JSON 스키마를 고정해 사용합니다.
 - 2026-04-27: 스킬 사용/미사용 조건의 토큰 수와 품질을 비교하기 위한 `token_compare.md`, `measure_tokens.py`를 추가했습니다.
 
 ---
@@ -51,7 +51,8 @@
 ### 산출물(요약)
 
 - 기본: **`html_report`** — **(1) 사용자 이상안 (2) 대체 후보 우선순위 (3) 긴급 실행 순서 (4) 제외·주의 목록** 네 구획, 분반·담당 교수, 시간 겹침 검증, 동선 검증, 근거 연결 포함
-- 워크스페이스에 이미 있는 보조 스크립트 예: `_planu_extract.py`, `_planu_schedule.py`, `_planu_build_html_report.py` 등은 **참고용**이며, 스킬과 충돌 시 **`seed.yaml` + 스킬**이 우선이다. 단, 수강편람 추출은 초대용량 처리 규칙에 따라 `_planu_extract.py` stdout의 정제 JSON만 사용한다.
+- `_planu_extract.py`는 이 워크스페이스에서 함께 버전 관리하는 PlanU 보조 실행 스크립트다. 수강편람 추출은 초대용량 처리 규칙에 따라 이 스크립트 stdout의 정제 JSON만 사용한다.
+- 그 외 보조 스크립트 예: `_planu_schedule.py`, `_planu_build_html_report.py` 등은 **참고용**이며, 스킬과 충돌 시 **`seed.yaml` + 스킬**이 우선이다.
 - `_planu_extract.py`의 stdout은 스킬에 정의된 `available_courses_catalog` 스키마를 따른다. 핵심 키는 `course_name`, `section`, `day`, `period`, `building`, `room`, `instructor`, `source_row`, `evidence`이다.
 
 ### 관련 문서
