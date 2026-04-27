@@ -30,10 +30,11 @@ constraints:
   - "**연강 가능 여부**는 `campus_rules.json` rule_engine을 따른다. **연강**은 앞 수업 종료~뒷 수업 시작이 **20분 이하**인 경우를 말한다. 판정 기준: (1) 건물 구역(앞자리) 차이가 3 이상이면 기본 불가; (2) rule_tree에 해당 from→to 방향의 조합이 명시되어 있으면 그 `can_connect` 값을 따른다. **rule_tree 규칙은 단방향**으로만 적용한다(from→to 명시 방향만 해당). 연강 불가로 판정된 수업 조합은 **플랜 B·C 후보에서 생성하지 않는다**. 사용자 이상안에 해당 조합이 있으면 **경고·확인 요청만** 하고 이상안 자체를 변경하지 않는다."
 
 acceptance_criteria:
-  - PDF/HWP/XLSX 등은 형식별 도구로 읽고 공통 전처리 구조로 정규화한다.
-  - 파이프라인: Core(목록·이상안 정규화·Hard-Soft·실패 시나리오 확정) → PNU 동선(가능 시) → 전략(**플랜 B·C만** 생성; 이상안은 검증·표시) → 오거나이저가 **`html_report`**로 합성.
-  - HTML에 **수강 가능 강의 목록**(근거 파일·범위 요약), **이상적 시간표(사용자 입력)** 요일별 표(교시/시간·과목명·분반·담당 교수 열), **플랜 B**(실패 가정 문장·표·겹침 검증 요약), **플랜 C**(동일), 수강신청 행동 가이드, 리스크·가정, 면책.
-  - 전략 단계에서 **이상안·플랜 B·플랜 C** 각각에 대해 `schedule_validation`을 남기고 HTML에 플랜별 요약을 표시한다(75분 가정 사용 시 명시).
+  - 3단계 파이프라인 준수:
+    - Stage 1: 파일(PDF/HWP/XLSX) → 파싱 → `available_courses_catalog` JSON 저장 후 종료.
+    - Stage 2: JSON 로드 → 학점·필수과목·교수·시간대·이상안 인터뷰 → `user_profile`·`preferences`·`must_take_courses`·`user_ideal_timetable` 저장.
+    - Stage 3: Stage 1·2 로드 → Core → campus_route_validation → schedule_validation → 플랜 B·C 생성 → `html_report` 합성.
+  - HTML 4섹션 필수: 목록 / 이상안 / 플랜B / 플랜C. 각 플랜에 실패가정·표·겹침검증·campus_route_validation 요약.
   - 근거 없는 주장 금지. 추출 실패 시 오류·다른 형식 권고 후 종료.
   - Streamlit 등은 사용자 요청 시에만.
 
@@ -41,68 +42,48 @@ ontology_schema:
   name: PlanUCursorMVP
   description: Cursor 기반 PlanU v1 — 이상안 입력 + 플랜 B·C 대체
   fields:
-    - name: user_profile
-      type: object
-      description: 학과, 학년, 이수 학점, 목표 학점 등(진술·파일 근거)
     - name: available_courses_catalog
       type: array
-      description: >
-        수강편람·개설 근거에서 추출한 **수강 가능(개설) 강의** 목록. 분반·요일·교시·담당 등
-        가능한 한 근거와 묶음. 플랜 B·C의 대체 후보 풀.
+      description: Stage 1 출력. 개설 강의 목록 (분반·요일·교시·담당). B·C 대체 후보 풀.
     - name: user_ideal_timetable
       type: object
-      description: >
-        사용자가 정한 **이상적 시간표**(분반·요일·교시·과목명 등). 파일·채팅에서 정규화.
-        시스템이 임의로 바꾸지 않으며, 목록과 불일치 시 경고·질문.
+      description: 사용자 이상안 (불변 입력). 시스템이 임의 변경 금지.
     - name: must_take_courses
       type: array
-      description: >
-        이번 학기 꼭 넣고 싶은 과목·이상안의 병목. 플랜 B·C의 **실패 가정** 후보를 정할 때 사용.
-        비어 있으면 실패 시나리오 질문으로 보완.
+      description: 필수 과목·병목. B·C 실패 가정 후보. 비어 있으면 인터뷰로 보완.
+    - name: user_profile
+      type: object
+      description: 학과·학년·이수학점 등 (Stage 2 출력).
     - name: preferences
       type: object
-      description: 공강, 하루 최대 수업, 학점/편의, 팀플 회피, 이동 선호 등(B·C 대체 선택 시).
-    - name: preference_clarification_rounds
-      type: array
-      description: 필수 Soft 보완 질문-답변 로그.
+      description: 공강·최대수업·교수 선호 등 Soft 조건 (Stage 2 출력).
     - name: evidence_sources
       type: array
-      description: 채팅 인용 + 파일 경로·형식
+      description: 파일 경로 + 채팅 인용.
     - name: extracted_corpus
       type: object
-      description: 파일별 추출 결과 또는 오류
+      description: 파일별 파싱 결과 또는 오류.
     - name: graduation_audit
       type: object
-      description: 충족·미충족·판단불가(Hard 참고)
+      description: 졸업 요건 충족·미충족·판단불가 (Hard 참고).
     - name: course_candidates
       type: array
-      description: available_courses_catalog와 동기화 가능한 후보·필터 결과
+      description: B·C 후보 필터 결과.
     - name: schedule_validation
       type: object
-      description: >
-        **이상안**, **플랜 B**, **플랜 C** 각각에 대한 동일 안 내 시간 겹침 검사 결과.
-        교시당 75분 환산 사용 시 명시.
+      description: 이상안·플랜B·플랜C 각각 시간 겹침 검사. 75분 가정 사용 시 명시.
     - name: campus_route_validation
       type: object
-      description: >
-        campus_rules.json rule_engine을 적용한 연강 가능 여부 판정 결과.
-        이상안·플랜 B·플랜 C 각각에서 연강 구간(앞 수업 종료~다음 수업 시작 ≤20분)을 추출하고,
-        건물 from→to 단방향 규칙을 대조해 can_connect 여부를 기록한다.
-        불가 조합은 B·C에서 제외하며, 이상안에 불가 조합이 있으면 경고 메시지를 남긴다.
-    - name: route_assessment
-      type: object
-      description: 건물·구역 데이터가 있을 때만 동선; 수업 구간은 시각 우선, 없으면 75분 블록.
+      description: campus_rules.json 단방향 적용. 연강(≤20분) 구간 이동 가능 여부. 불가→B·C 제외, 이상안→경고.
     - name: timetable_plans
       type: object
-      description: >
-        **플랜 B·플랜 C**만 에이전트 생성 대상. 각각 다른 **수강신청 실패 가정**, 요일×교시 표,
-        분반·담당 교수, 충돌 검증 요약, 클릭 우선순위(확률 없음). 이상안은 `user_ideal_timetable`로 별도.
+      description: 플랜B·C 생성 결과 (이상안은 user_ideal_timetable로 별도).
     - name: html_report
       type: string
-      description: 완전한 HTML 문서. 섹션 순서 권장 — 목록 → 이상안 → 플랜 B → 플랜 C.
+      description: 최종 HTML. 섹션 순서: 목록→이상안→플랜B→플랜C.
     - name: optional_code_bundle
       type: string
-      description: 요청 시에만
+      description: 요청 시에만.
 
 evaluation_principles:
   - name: evidence_fidelity
@@ -134,9 +115,9 @@ exit_conditions:
     - 상호 평가·수렴, 경쟁률 예측, 교수 스타일 분석은 v2 이후.
 
 metadata:
-  version: "2.1.0"
+  version: "2.2.0"
   created_at: "2026-04-11"
-  updated_at: "2026-04-24"
+  updated_at: "2026-04-25"
   sources:
     - raw_spec.md
     - raw_spec2.md
